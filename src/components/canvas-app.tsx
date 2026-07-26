@@ -56,8 +56,15 @@ export function CanvasApp() {
     return <SearchHero value={draft} onChange={setDraft} onSearch={startSearch} />;
   }
 
-  // Keep the loading screen up until the first rows actually exist.
-  if (phase === "loading" && !workspace) {
+  // Keep the loading ticker up until there is something real to show —
+  // empty schema shells should not replace the live percentage.
+  const waitingForContent =
+    phase === "loading" &&
+    (!workspace ||
+      ("rows" in workspace && workspace.rows.length === 0) ||
+      ("points" in workspace && workspace.points.length === 0));
+
+  if (waitingForContent) {
     return <SearchLoading query={query} steps={steps} progress={progress} />;
   }
 

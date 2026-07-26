@@ -12,37 +12,54 @@ type Props = {
   progress: number;
 };
 
-/** Typical end-to-end search, used only to estimate the seconds remaining. */
-const EXPECTED_MS = 14000;
+/** Soft ceiling while work is still in flight — never claim 100% early. */
+const CAP = 96;
 
 /**
  * Loading experience between search and workspace.
  *
- * Every line corresponds to work the server actually did. The percentage is
- * driven by real phases, then eased forward between them so the bar never
- * appears frozen while a slow network call is in flight.
+ * Server phases set a floor. Between phases the ticker keeps climbing
+ * toward the cap so it never freezes at e.g. 50% during a long Exa call.
  */
 export function SearchLoading({ query, steps, progress }: Props) {
+  const [shown, setShown] = useState(0);
   const [elapsed, setElapsed] = useState(0);
-  const [smooth, setSmooth] = useState(0);
   const startedAt = useRef(Date.now());
+  const shownRef = useRef(0);
+  const progressRef = useRef(progress);
+
+  progressRef.current = progress;
 
   useEffect(() => {
     const tick = setInterval(() => {
       const ms = Date.now() - startedAt.current;
       setElapsed(ms);
 
-      // Drift toward the next phase so the bar keeps breathing, but never
-      // overtake what the server has actually confirmed.
-      const timeBased = Math.min(95, (ms / EXPECTED_MS) * 100);
-      setSmooth((prev) => Math.max(prev, Math.min(progress + 12, timeBased)));
+      const floor = Math.max(shownRef.current, progressRef.current);
+      const remaining = CAP - floor;
+
+      // Asymptotic creep: always move a little, slower near the top.
+      // At 100ms ticks this reaches the high 90s over ~45–60s without stalling.
+      const creep =
+        remaining <= 0 ? 0 : Math.max(0.12, remaining * 0.018);
+
+      const next = Math.min(CAP, floor + creep);
+      shownRef.current = next;
+      setShown(next);
     }, 100);
 
     return () => clearInterval(tick);
+  }, []);
+
+  // Snap up immediately when the server reports a higher phase.
+  useEffect(() => {
+    if (progress > shownRef.current) {
+      shownRef.current = progress;
+      setShown(progress);
+    }
   }, [progress]);
 
-  const shown = Math.max(smooth, progress);
-  const seconds = Math.max(0, Math.round((EXPECTED_MS - elapsed) / 1000));
+  const seconds = Math.max(1, Math.round((CAP - shown) * 0.55));
   const visibleSteps = steps.length > 0 ? steps : ["Searching the web..."];
 
   return (
@@ -58,11 +75,11 @@ export function SearchLoading({ query, steps, progress }: Props) {
             <span className="text-2xl text-zinc-400">%</span>
           </span>
           <span className="text-sm tabular-nums text-zinc-400">
-            {shown >= 99
+            {shown >= 94
               ? "Almost there"
-              : seconds > 0
-                ? `about ${seconds}s left`
-                : "finishing up"}
+              : elapsed > 50_000
+                ? "still working"
+                : `about ${seconds}s left`}
           </span>
         </div>
 
@@ -70,7 +87,7 @@ export function SearchLoading({ query, steps, progress }: Props) {
           <motion.div
             className="h-full rounded-full bg-zinc-900 dark:bg-white"
             animate={{ width: `${shown}%` }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
+            transition={{ duration: 0.15, ease: "linear" }}
           />
         </div>
 
