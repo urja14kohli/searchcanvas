@@ -75,19 +75,16 @@ export function SearchInput({
           "dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-50 dark:placeholder:text-zinc-500",
           "dark:focus:border-white/20",
           isHero
-            ? "h-16 rounded-2xl pl-14 pr-28 text-lg"
-            : "h-12 rounded-xl pl-11 pr-24 text-[15px]",
+            ? "h-16 rounded-2xl pl-14 pr-24 text-lg"
+            : "h-12 rounded-xl pl-11 pr-20 text-[15px]",
         )}
       />
       <div
         className={cn(
-          "absolute top-1/2 flex -translate-y-1/2 items-center gap-2",
+          "absolute top-1/2 flex -translate-y-1/2 items-center",
           isHero ? "right-4" : "right-3",
         )}
       >
-        <kbd className="hidden rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] text-zinc-400 sm:inline dark:border-white/10 dark:bg-zinc-900">
-          ⌘K
-        </kbd>
         <button
           type="submit"
           className={cn(
